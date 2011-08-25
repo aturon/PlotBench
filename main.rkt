@@ -35,10 +35,10 @@
       (vector-set! runs-for-series i values)))
   data)
 
-(define (rtp-file-list path bench-name date)
+(define (file-list type path bench-name date)
   (define (parse-file-name file-name)
     (match file-name
-      [(regexp (regexp (string-append "rtp\\." bench-name "-(.*)\\." date)) (list _ work))
+      [(regexp (regexp (string-append "^" type "\\." bench-name "-(.*)\\." date)) (list _ work))
        (string->number work)]
       [_ #f]))
   (for*/list ([file-path (directory-list path)]
@@ -55,7 +55,7 @@
   (define z1 (vector-ref (vector-ref series-data yf) (+ 1 xf)))  
   (+ (* perc-x z1) (* (- 1 perc-x) z0)))
 
-(define (plot3d-series series-name series-data)
+(define ((plot3d-series x-label y-label z-label) series-name series-data)
   (parameterize ((plot3d-font-family 'swiss))
     (plot3d (surface3d (surface-fn series-data) 
                        1 7.9999 0 (- (vector-length series-data) 1)
@@ -63,19 +63,12 @@
                        #:line-color '(100 100 100))
             #:angle 45 #:altitude 23
             #:title series-name
-            #:x-label "Threads"
-            #:y-label "log(Work)"
-            #:z-label "Speedup")))
+            #:x-label x-label
+            #:y-label y-label
+            #:z-label z-label)))
 
-(define (plot3d-all data)
-  (hash-map data plot3d-series))
-
-(define (load path bench-name date)
-  (define file-list (rtp-file-list path bench-name date))
-  (load-param-benchmark file-list))
-
-(define (load-and-plot3d path bench-name date)  
-  (plot3d-all (load path bench-name date)))
+(define (plot3d-all data x-label y-label z-label)
+  (hash-map data (plot3d-series x-label y-label z-label)))
 
 (define (combine-serii op data1 data2)
   (for/vector ([i (in-range 0 (min (vector-length data1)
@@ -85,7 +78,7 @@
       (op (vector-ref (vector-ref data1 i) j)
           (vector-ref (vector-ref data2 i) j)))))
 
-(define (plot2d-series series-name series-data)
+(define ((plot2d-series x-label y-label) series-name series-data)
   (define colors 
     (vector 'red 
             'orange 
@@ -102,35 +95,62 @@
        1 8 0 8 #:alpha 0.4 #:width 4
        #:color (vector-ref colors (modulo i (vector-length colors))))))
   (plot2d (apply mix param-lines)
-          #:title series-name))
+          #:title series-name
+          #:x-label x-label
+          #:y-label y-label))
 
-(define path "/home/turon/ChemistrySet/reports")
+(define (load type path bench-name date)
+  (define files (file-list type path bench-name date))
+  (load-param-benchmark files))
+
+;(define path "/home/turon/ChemistrySet/reports")
+(define path "/Users/turon/ChemistrySet/reports")
 
 ;(load-and-plot3d path "PushPop" "latest")
 ;(load-and-plot3d path "PushPop" "2011.08.20.18.00.24")
 ;(load-and-plot3d path "IncDec" "2011.08.05.10.15.32")
 
 ;(define data-current (load path "PushPop" "latest"))
-(define data-full (load path "PushPop" "2011.08.20.18.00.24"))
-(define data-new-elim (load path "PushPop" "2011.08.23.12.10.26"))
+;(define data-full (load path "PushPop" "2011.08.20.18.00.24"))
+;(define data-new-elim (load path "PushPop" "2011.08.23.12.10.26"))
 
-(plot3d-all (normalize-to-first data-full))
-(plot3d-all (normalize-to-first data-new-elim))
+(define data-rtp-full (load "rtp" path "PushPop" "2011.08.23.22.57.02"))
+(define data-tp-full (load "tp" path "PushPop" "2011.08.23.22.57.02"))
+(define normalized (normalize-to-first data-rtp-full))
 
-(plot3d-series "Reagent-Elim versus Hand-Elim"
-             (combine-serii (lambda (x y) (/ x y)) 
-                            (hash-ref data-new-elim "r-elim")
-                            (hash-ref data-full "handElim")))
+(plot3d-all normalized "Threads" "Work/50" "Speedup")
+(plot3d-all data-tp-full "Threads" "Work/50" "Op throughput")
 
-(plot3d-series "Reagent-Elim versus Reagent-Teriber"
-             (combine-serii (lambda (x y) (/ x y)) 
-                            (hash-ref data-new-elim "r-elim")
-                            (hash-ref data-full "r-treiber")))
+((plot3d-series "Threads" "Work/50" "Op throughput ratio")
+ "Reagent-Elim versus Hand-Elim" 
+ (combine-serii (lambda (x y) (/ x y)) 
+                (hash-ref data-tp-full "r-elim")
+                (hash-ref data-tp-full "handElim")))
 
-(plot3d-series "Reagent-Elim versus Hand"
-             (combine-serii (lambda (x y) (/ x y)) 
-                            (hash-ref data-new-elim "r-elim")
-                            (hash-ref data-full "hand")))
+((plot3d-series "Threads" "Work/50" "Speedup difference")
+ "Reagent-Elim versus Hand-Elim (normalized)"
+ (combine-serii (lambda (x y) (- x y)) 
+                (hash-ref normalized "r-elim")
+                (hash-ref normalized "handElim")))
 
-(hash-map (normalize-to-first data-full) plot2d-series)
-(hash-map (normalize-to-first data-new-elim) plot2d-series)
+((plot3d-series "Threads" "Work/50" "Op throughput ratio")
+ "Reagent-Elim versus Hand"               
+ (combine-serii (lambda (x y) (/ x y)) 
+                (hash-ref data-tp-full "r-elim")
+                (hash-ref data-tp-full "hand")))
+
+((plot3d-series "Threads" "Work/50" "Speedup difference")
+ "Reagent-Elim versus Hand (normalized)"               
+ (combine-serii (lambda (x y) (- x y)) 
+                (hash-ref normalized "r-elim")
+                (hash-ref normalized "hand")))
+
+((plot3d-series "Threads" "Work/50" "Speedup difference")
+ "HandElim versus Hand (normalized)"               
+ (combine-serii (lambda (x y) (- x y)) 
+                (hash-ref normalized "handElim")
+                (hash-ref normalized "hand")))
+
+(hash-map normalized (plot2d-series "Threads" "Speedup"))
+(hash-map data-tp-full (plot2d-series "Threads" "Op throughput"))
+;(hash-map (normalize-to-first data-new-elim) plot2d-series)
