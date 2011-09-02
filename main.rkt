@@ -103,8 +103,8 @@
   (define files (file-list type path bench-name date))
   (load-param-benchmark files))
 
-;(define path "/home/turon/ChemistrySet/reports")
-(define path "/Users/turon/ChemistrySet/reports")
+(define path "/home/turon/ChemistrySet/reports")
+;(define path "/Users/turon/ChemistrySet/reports")
 
 ;(load-and-plot3d path "PushPop" "latest")
 ;(load-and-plot3d path "PushPop" "2011.08.20.18.00.24")
@@ -114,43 +114,43 @@
 ;(define data-full (load path "PushPop" "2011.08.20.18.00.24"))
 ;(define data-new-elim (load path "PushPop" "2011.08.23.12.10.26"))
 
-(define data-rtp-full (load "rtp" path "PushPop" "2011.08.23.22.57.02"))
-(define data-tp-full (load "tp" path "PushPop" "2011.08.23.22.57.02"))
-(define normalized (normalize-to-first data-rtp-full))
+;(define data-rtp-full (load "rtp" path "PushPop" "2011.08.23.22.57.02"))
+;(define data-tp-full (load "tp" path "PushPop" "2011.08.23.22.57.02"))
+;(define normalized (normalize-to-first data-rtp-full))
 
-(plot3d-all normalized "Threads" "Work/50" "Speedup")
-(plot3d-all data-tp-full "Threads" "Work/50" "Op throughput")
+; 129.10.115.127
 
-((plot3d-series "Threads" "Work/50" "Op throughput ratio")
- "Reagent-Elim versus Hand-Elim" 
- (combine-serii (lambda (x y) (/ x y)) 
-                (hash-ref data-tp-full "r-elim")
-                (hash-ref data-tp-full "handElim")))
+(define data-pushpop (load "rtp" (string-append path "/PushPopElim") "PushPop" "latest"))
+(define data-ppe (load "rtp" (string-append path "/PPE2") "PushPop" "latest"))
 
-((plot3d-series "Threads" "Work/50" "Speedup difference")
- "Reagent-Elim versus Hand-Elim (normalized)"
- (combine-serii (lambda (x y) (- x y)) 
-                (hash-ref normalized "r-elim")
-                (hash-ref normalized "handElim")))
+;(plot3d-all normalized "Threads" "Work/50" "Speedup")
+;(plot3d-all data-tp-full "Threads" "Work/50" "Op throughput")
 
-((plot3d-series "Threads" "Work/50" "Op throughput ratio")
- "Reagent-Elim versus Hand"               
- (combine-serii (lambda (x y) (/ x y)) 
-                (hash-ref data-tp-full "r-elim")
-                (hash-ref data-tp-full "hand")))
+(define (plot3d-compare data s1 s2)
+  ((plot3d-series "Threads" "Work/50" "Throughput ratio")
+   (string-append s1 " versus " s2)
+   (combine-serii (lambda (x y) (/ y x)) 
+                  (hash-ref data s1)
+                  (hash-ref data s2))))
 
-((plot3d-series "Threads" "Work/50" "Speedup difference")
- "Reagent-Elim versus Hand (normalized)"               
- (combine-serii (lambda (x y) (- x y)) 
-                (hash-ref normalized "r-elim")
-                (hash-ref normalized "hand")))
+(define (plot2d-compare data s1 s2)
+  ((plot2d-series "Threads" "Throughput ratio")
+   (string-append s1 " versus " s2)
+   (combine-serii (lambda (x y) (/ y x)) 
+                  (hash-ref data s1)
+                  (hash-ref data s2))))
 
-((plot3d-series "Threads" "Work/50" "Speedup difference")
- "HandElim versus Hand (normalized)"               
- (combine-serii (lambda (x y) (- x y)) 
-                (hash-ref normalized "handElim")
-                (hash-ref normalized "hand")))
+(plot3d-compare data-pushpop "rElim" "handElim")
+(plot3d-compare data-ppe "rElim" "handElim")
 
-(hash-map normalized (plot2d-series "Threads" "Speedup"))
-(hash-map data-tp-full (plot2d-series "Threads" "Op throughput"))
-;(hash-map (normalize-to-first data-new-elim) plot2d-series)
+(plot3d-compare data-pushpop "rElim" "hand")
+(plot3d-compare data-ppe "rElim" "hand")
+
+(plot3d-compare data-pushpop "rElim" "rTreiber")
+(plot3d-compare data-ppe "rElim" "rTreiber")
+
+(plot3d-compare data-pushpop "rTreiber" "hand")
+(plot3d-compare data-ppe "rTreiber" "hand")
+
+(hash-map (normalize-to-first data-pushpop) (plot2d-series "Threads" "Speedup"))
+(hash-map (normalize-to-first data-ppe) (plot2d-series "Threads" "Speedup"))
