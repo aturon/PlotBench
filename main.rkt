@@ -58,7 +58,7 @@
 (define ((plot3d-series x-label y-label z-label) series-name series-data)
   (parameterize ((plot3d-font-family 'swiss))
     (plot3d (surface3d (surface-fn series-data) 
-                       1 7.9999 0 (- (vector-length series-data) 1)
+                       1 15.9999 0 (- (vector-length series-data) 1)
                        #:color '(100 220 120) 
                        #:line-color '(100 100 100))
             #:angle 45 #:altitude 23
@@ -92,7 +92,7 @@
       (lines
        (for/list ([j (in-range 0 (vector-length (vector-ref series-data i)))])
          (vector (+ 1 j) (vector-ref (vector-ref series-data i) j)))
-       1 8 0 8 #:alpha 0.4 #:width 4
+       1 16 0 16 #:alpha 0.4 #:width 4
        #:color (vector-ref colors (modulo i (vector-length colors))))))
   (plot2d (apply mix param-lines)
           #:title series-name
@@ -120,11 +120,13 @@
 
 ; 129.10.115.127
 
-(define data-pushpop (load "rtp" (string-append path "/PushPopElim") "PushPop" "latest"))
-(define data-ppe (load "rtp" (string-append path "/PPE2") "PushPop" "latest"))
+;(define data-pushpop (load "rtp" (string-append path "/PushPopElim") "PushPop" "latest"))
+(define data-ppe (load "rtp" (string-append path "/PPE3") "PushPop" "latest"))
 
 ;(plot3d-all normalized "Threads" "Work/50" "Speedup")
 ;(plot3d-all data-tp-full "Threads" "Work/50" "Op throughput")
+
+(plot3d-all (normalize-to-first data-ppe) "Threads" "Work/50" "Speedup")
 
 (define (plot3d-compare data s1 s2)
   ((plot3d-series "Threads" "Work/50" "Throughput ratio")
@@ -140,17 +142,17 @@
                   (hash-ref data s1)
                   (hash-ref data s2))))
 
-(plot3d-compare data-pushpop "rElim" "handElim")
+;(plot3d-compare data-pushpop "rElim" "handElim")
 (plot3d-compare data-ppe "rElim" "handElim")
 
-(plot3d-compare data-pushpop "rElim" "hand")
+;(plot3d-compare data-pushpop "rElim" "hand")
 (plot3d-compare data-ppe "rElim" "hand")
 
-(plot3d-compare data-pushpop "rElim" "rTreiber")
+;(plot3d-compare data-pushpop "rElim" "rTreiber")
 (plot3d-compare data-ppe "rElim" "rTreiber")
 
-(plot3d-compare data-pushpop "rTreiber" "hand")
+;(plot3d-compare data-pushpop "rTreiber" "hand")
 (plot3d-compare data-ppe "rTreiber" "hand")
 
-(hash-map (normalize-to-first data-pushpop) (plot2d-series "Threads" "Speedup"))
+;(hash-map (normalize-to-first data-pushpop) (plot2d-series "Threads" "Speedup"))
 (hash-map (normalize-to-first data-ppe) (plot2d-series "Threads" "Speedup"))
