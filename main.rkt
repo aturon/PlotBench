@@ -32,7 +32,7 @@
       (define runs-for-series 
         (hash-ref! data series (lambda () (make-vector run-count))))
       (vector-set! runs-for-series i values)))
-  data)
+  (cons (map car sorted) data))
 
 (define (file-list type path bench-name date)
   (define (parse-file-name file-name)
@@ -97,44 +97,75 @@
         #:x-label x-label
         #:y-label y-label))
 
-(define color-table
-  (hash "rTreiber" 1
-        "hand" 2
-        "lock" 3
-        "stm" 4       
-        "rElim" 5
-        "reagent" 1
-        "simpleR" 5
-        "juc" 6))
-        
+(define-struct series (name display-name color style))
 
-(define (plot2d-collected data set-name work-vec)
+(define (plot2d-collected run-set set-name series-list)
+  (define work-vec (list->vector (car run-set)))
+  (define data (cdr run-set))
+  (define size 165)
+  (define pseries-list (map (lambda (series-data) (apply make-series series-data)) series-list))  
   (for/list ([work-index (in-range 0 (vector-length work-vec))])
-    (define (make-line series-name series-data)
+    (define (make-line series)
+      (define series-data (hash-ref data (series-name series))) 
       (lines
        (for/list ([j (in-range 0 (vector-length (vector-ref series-data work-index)))])
          (vector (+ 1 j) (vector-ref (vector-ref series-data work-index) j)))
-       #:width 5
-       #:color (hash-ref color-table series-name)
-       #:style (- (hash-ref color-table series-name) 1)
+       #:width 2
+       #:color (series-color series)
+       #:style (series-style series)
        ;#:alpha 0.6
-       #:label series-name
-       ))
-    (plot (hash-map data make-line)
-          #:title (string-append
-                   set-name ": "
-                   (number->string (vector-ref work-vec work-index)))
-          #:x-label "Threads"
-          #:y-label "Throughput"
-          )))
+       #:label #f))
+       ;#:label (series-display-name series)))
+    (define (make-legend-line series)
+      (define series-data (hash-ref data (series-name series))) 
+      (lines (list #(3 3))
+             #:width 3
+             #:color (series-color series)
+             #:style (series-style series)
+             ;#:alpha 0.6
+             #:label (series-display-name series)))
+    (cons
+      (parameterize ([plot-font-family 'swiss]
+                     [plot-tick-size 6] )
+        (plot (map make-line pseries-list)
+              #:out-file (string-append "/home/turon/Research/ChemistrySet/paper/graphs/"
+                                        set-name "-" (number->string (vector-ref work-vec work-index)) ".pdf")
+              #:title (string-append
+                       set-name ": "
+                       (if (< (vector-ref work-vec work-index) 500) "high" "low")
+                       " contention")
+                       ;(number->string (* 0.25 (/ (vector-ref work-vec work-index) 100)))
+                       ;"μs work")
+              #:x-label #f ;"Threads"
+              #:y-label #f ;"Throughput"
+              #:width size
+              #:height size
+              #:legend-anchor 'bottom))
+      (parameterize ([plot-font-family 'swiss]
+                     [plot-tick-size 0] 
+                     [x-axis-ticks? #f]
+                     [y-axis-ticks? #f])
+        (plot (map make-legend-line pseries-list)
+              #:out-file (string-append "/home/turon/Research/ChemistrySet/paper/graphs/"
+                                        set-name "-" (number->string (vector-ref work-vec work-index)) "-legend.pdf")
+              #:title #f
+              #:x-min 1
+              #:x-max 8
+              #:y-min 0
+              #:y-max 8
+              #:x-label #f 
+              #:y-label #f 
+              #:width size
+              #:height size
+              #:legend-anchor 'center)))))
    
 
 (define (load type path bench-name date)
   (define files (file-list type path bench-name date))
   (load-param-benchmark files))
 
-;(define path "/home/turon/Research/ChemistrySet/reports")
-(define path "/Users/turon/Research/ChemistrySet/reports")
+(define path "/home/turon/Research/ChemistrySet/reports")
+;(define path "/Users/turon/Research/ChemistrySet/reports")
 
 ;(load-and-plot3d path "PushPop" "latest")
 ;(load-and-plot3d path "PushPop" "2011.08.20.18.00.24")
@@ -151,9 +182,6 @@
 ; 129.10.115.127
 
 ;(define data-pushpop (load "rtp" (string-append path "/PushPopElim") "PushPop" "latest"))
-(define data-pushpop (load "rtp" (string-append path "/Nov2StackQueue") "PushPop" "latest"))
-(define data-enqdeq (load "rtp" (string-append path "/Nov2StackQueue") "EnqDeq" "latest"))
-
 ;(plot3d-all normalized "Threads" "Work/50" "Speedup")
 ;(plot3d-all data-tp-full "Threads" "Work/50" "Op throughput")
 
@@ -190,5 +218,51 @@
 ;(hash-map data-pushpop (plot2d-series "Threads" "Throughput"))
 ;(hash-map data-enqdeq (plot2d-series "Threads" "Throughput"))
 
-(plot2d-collected data-pushpop "PushPop" #(50 500 5000))
-(plot2d-collected data-enqdeq "EnqDeq" #(50 500 5000))
+(define data-pushpop (load "rtp" (string-append path "/pldi2") "PushPop" "latest"))
+(define data-stacktran (load "rtp" (string-append path "/pldi2") "StackTransfer" "latest"))
+(define data-enqdeq (load "rtp" (string-append path "/pldi2") "EnqDeq" "latest"))
+(define data-queuetran (load "rtp" (string-append path "/pldi2") "QueueTransfer" "latest"))
+
+(plot2d-collected 
+ data-pushpop 
+ "PushPop" 
+ '(("rTreiber" "Reagent-Treiber" 1 0)
+   ("hand" "Hand-Treiber" 2 1)
+   ("lock" "Lock-based" 3 2)
+   ("stm" "STM-based" 4 3)
+   ("rElim" "Reagent-Elim" 5 4)))
+ ;#(100 1000))
+ ;#(30 40 50 100 300 500 3000))
+
+(plot2d-collected 
+ data-stacktran
+ "StackTransfer" 
+ '(("reagent" "Reagent-Treiber" 1 0)
+   ("lock" "Lock-based" 3 2)
+   ("stm" "STM-based" 4 3)
+   ("rElim" "Reagent-Elim" 5 4)))
+ ;#(100 1000))
+ ;#(10 30 40 50 100 300 500 3000 5000))
+
+;(plot2d-collected data-enqdeq "EnqDeq" #(50 500 5000))
+
+(plot2d-collected 
+ data-enqdeq
+ "EnqDeq" 
+ '(("reagent" "Reagent-MSQ" 1 0)
+   ("hand" "Hand-MSQ" 2 1)
+   ("lock" "Lock-based" 3 2)
+   ("stm" "STM-based" 4 3)
+   ("simpleR" "Reagent-Simple" 5 4)))
+ ;#(100 1000))
+ ;#(50 500 5000))
+
+(plot2d-collected 
+ data-queuetran
+ "QueueTransfer" 
+ '(("reagent" "Reagent-MSQ" 1 0)
+   ("lock" "Lock-based" 3 2)
+   ("stm" "STM-based" 4 3)
+   ("simple" "Reagent-Simple" 5 4)))
+ ;#(100 1000))
+ ;#(40 100 1000))
