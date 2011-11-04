@@ -3,8 +3,7 @@
 (require racket/list
          racket/match
          racket/vector
-         "../plt-stuff/plot/plot3d.rkt"
-         "../plt-stuff/plot/plot2d.rkt")
+         plot)
 
 (define (normalize-to-first data)
   (define (normalize-vector vec)
@@ -56,16 +55,15 @@
   (+ (* perc-x z1) (* (- 1 perc-x) z0)))
 
 (define ((plot3d-series x-label y-label z-label) series-name series-data)
-  (parameterize ((plot3d-font-family 'swiss))
-    (plot3d (surface3d (surface-fn series-data) 
-                       1 15.9999 0 (- (vector-length series-data) 1)
-                       #:color '(100 220 120) 
-                       #:line-color '(100 100 100))
-            #:angle 45 #:altitude 23
-            #:title series-name
-            #:x-label x-label
-            #:y-label y-label
-            #:z-label z-label)))
+  (plot3d (surface3d (surface-fn series-data) 
+                     1 7.9999 0 (- (vector-length series-data) 1)
+                     #:color '(100 220 120) 
+                     #:line-color '(100 100 100))
+          #:angle 45 #:altitude 23
+          #:title series-name
+          #:x-label x-label
+          #:y-label y-label
+          #:z-label z-label))
 
 (define (plot3d-all data x-label y-label z-label)
   (hash-map data (plot3d-series x-label y-label z-label)))
@@ -92,19 +90,51 @@
       (lines
        (for/list ([j (in-range 0 (vector-length (vector-ref series-data i)))])
          (vector (+ 1 j) (vector-ref (vector-ref series-data i) j)))
-       1 16 0 16 #:alpha 0.4 #:width 4
+       #:alpha 0.4 #:width 4
        #:color (vector-ref colors (modulo i (vector-length colors))))))
-  (plot2d (apply mix param-lines)
-          #:title series-name
-          #:x-label x-label
-          #:y-label y-label))
+  (plot (apply mix param-lines)
+        #:title series-name
+        #:x-label x-label
+        #:y-label y-label))
+
+(define color-table
+  (hash "rTreiber" 1
+        "hand" 2
+        "lock" 3
+        "stm" 4       
+        "rElim" 5
+        "reagent" 1
+        "simpleR" 5
+        "juc" 6))
+        
+
+(define (plot2d-collected data set-name work-vec)
+  (for/list ([work-index (in-range 0 (vector-length work-vec))])
+    (define (make-line series-name series-data)
+      (lines
+       (for/list ([j (in-range 0 (vector-length (vector-ref series-data work-index)))])
+         (vector (+ 1 j) (vector-ref (vector-ref series-data work-index) j)))
+       #:width 5
+       #:color (hash-ref color-table series-name)
+       #:style (- (hash-ref color-table series-name) 1)
+       ;#:alpha 0.6
+       #:label series-name
+       ))
+    (plot (hash-map data make-line)
+          #:title (string-append
+                   set-name ": "
+                   (number->string (vector-ref work-vec work-index)))
+          #:x-label "Threads"
+          #:y-label "Throughput"
+          )))
+   
 
 (define (load type path bench-name date)
   (define files (file-list type path bench-name date))
   (load-param-benchmark files))
 
-(define path "/home/turon/ChemistrySet/reports")
-;(define path "/Users/turon/ChemistrySet/reports")
+;(define path "/home/turon/Research/ChemistrySet/reports")
+(define path "/Users/turon/Research/ChemistrySet/reports")
 
 ;(load-and-plot3d path "PushPop" "latest")
 ;(load-and-plot3d path "PushPop" "2011.08.20.18.00.24")
@@ -121,12 +151,14 @@
 ; 129.10.115.127
 
 ;(define data-pushpop (load "rtp" (string-append path "/PushPopElim") "PushPop" "latest"))
-(define data-ppe (load "rtp" (string-append path "/PPE3") "PushPop" "latest"))
+(define data-pushpop (load "rtp" (string-append path "/Nov2StackQueue") "PushPop" "latest"))
+(define data-enqdeq (load "rtp" (string-append path "/Nov2StackQueue") "EnqDeq" "latest"))
 
 ;(plot3d-all normalized "Threads" "Work/50" "Speedup")
 ;(plot3d-all data-tp-full "Threads" "Work/50" "Op throughput")
 
-(plot3d-all (normalize-to-first data-ppe) "Threads" "Work/50" "Speedup")
+;(plot3d-all (normalize-to-first data-pushpop) "Threads" "Work" "Speedup")
+;(plot3d-all (normalize-to-first data-enqdeq) "Threads" "Work" "Speedup")
 
 (define (plot3d-compare data s1 s2)
   ((plot3d-series "Threads" "Work/50" "Throughput ratio")
@@ -143,16 +175,20 @@
                   (hash-ref data s2))))
 
 ;(plot3d-compare data-pushpop "rElim" "handElim")
-(plot3d-compare data-ppe "rElim" "handElim")
+;(plot3d-compare data-ppe "rElim" "handElim")
 
 ;(plot3d-compare data-pushpop "rElim" "hand")
-(plot3d-compare data-ppe "rElim" "hand")
+;(plot3d-compare data-ppe "rElim" "hand")
 
 ;(plot3d-compare data-pushpop "rElim" "rTreiber")
-(plot3d-compare data-ppe "rElim" "rTreiber")
+;(plot3d-compare data-ppe "rElim" "rTreiber")
 
 ;(plot3d-compare data-pushpop "rTreiber" "hand")
-(plot3d-compare data-ppe "rTreiber" "hand")
+;(plot3d-compare data-ppe "rTreiber" "hand")
 
 ;(hash-map (normalize-to-first data-pushpop) (plot2d-series "Threads" "Speedup"))
-(hash-map (normalize-to-first data-ppe) (plot2d-series "Threads" "Speedup"))
+;(hash-map data-pushpop (plot2d-series "Threads" "Throughput"))
+;(hash-map data-enqdeq (plot2d-series "Threads" "Throughput"))
+
+(plot2d-collected data-pushpop "PushPop" #(50 500 5000))
+(plot2d-collected data-enqdeq "EnqDeq" #(50 500 5000))
