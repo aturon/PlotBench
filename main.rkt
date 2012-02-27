@@ -5,6 +5,11 @@
          racket/vector
          plot)
 
+;(define path "/home/turon/Research/ChemistrySet/reports")
+(define path "/Users/turon/rep/code/ChemistrySet/reports")
+(define pldi-path (string-append path "/pldi-final"))
+(define out-path "/Users/turon/rep/papers/pldi-2012-reagents/graphs/")
+
 (define (normalize-to-first data)
   (define (normalize-vector vec)
     (vector-map (lambda (x) (/ x (vector-ref vec 0))) vec))
@@ -54,7 +59,7 @@
   (define z1 (vector-ref (vector-ref series-data yf) (+ 1 xf)))  
   (+ (* perc-x z1) (* (- 1 perc-x) z0)))
 
-(define ((plot3d-series x-label y-label z-label) series-name series-data)
+#;(define ((plot3d-series x-label y-label z-label) series-name series-data)
   (plot3d (surface3d (surface-fn series-data) 
                      1 7.9999 0 (- (vector-length series-data) 1)
                      #:color '(100 220 120) 
@@ -65,7 +70,7 @@
           #:y-label y-label
           #:z-label z-label))
 
-(define (plot3d-all data x-label y-label z-label)
+#;(define (plot3d-all data x-label y-label z-label)
   (hash-map data (plot3d-series x-label y-label z-label)))
 
 (define (combine-serii op data1 data2)
@@ -99,7 +104,7 @@
 
 (define-struct series (name display-name color style))
 
-(define (plot2d-collected run-set set-name series-list)
+(define (plot2d-collected run-set set-name series-list multiplier)
   (define work-vec (list->vector (car run-set)))
   (define data (cdr run-set))
   (define size 165)
@@ -109,7 +114,7 @@
       (define series-data (hash-ref data (series-name series))) 
       (lines
        (for/list ([j (in-range 0 (vector-length (vector-ref series-data work-index)))])
-         (vector (+ 1 j) (vector-ref (vector-ref series-data work-index) j)))
+         (vector (+ 1 j) (* multiplier (vector-ref (vector-ref series-data work-index) j))))
        #:width 2
        #:color (series-color series)
        #:style (series-style series)
@@ -128,8 +133,7 @@
       (parameterize ([plot-font-family 'swiss]
                      [plot-tick-size 6] )
         (plot (map make-line pseries-list)
-              #:out-file (string-append "/home/turon/Research/ChemistrySet/paper/graphs/"
-                                        set-name "-" (number->string (vector-ref work-vec work-index)) ".pdf")
+              #:out-file (string-append out-path set-name "-" (number->string (vector-ref work-vec work-index)) ".pdf")
               #:title (string-append
                        set-name ": "
                        (if (< (vector-ref work-vec work-index) 500) "high" "low")
@@ -146,8 +150,7 @@
                      [x-axis-ticks? #f]
                      [y-axis-ticks? #f])
         (plot (map make-legend-line pseries-list)
-              #:out-file (string-append "/home/turon/Research/ChemistrySet/paper/graphs/"
-                                        set-name "-" (number->string (vector-ref work-vec work-index)) "-legend.pdf")
+              #:out-file (string-append out-path set-name "-" (number->string (vector-ref work-vec work-index)) "-legend.pdf")
               #:title #f
               #:x-min 1
               #:x-max 8
@@ -163,9 +166,6 @@
 (define (load type path bench-name date)
   (define files (file-list type path bench-name date))
   (load-param-benchmark files))
-
-(define path "/home/turon/Research/ChemistrySet/reports")
-;(define path "/Users/turon/Research/ChemistrySet/reports")
 
 ;(load-and-plot3d path "PushPop" "latest")
 ;(load-and-plot3d path "PushPop" "2011.08.20.18.00.24")
@@ -188,7 +188,7 @@
 ;(plot3d-all (normalize-to-first data-pushpop) "Threads" "Work" "Speedup")
 ;(plot3d-all (normalize-to-first data-enqdeq) "Threads" "Work" "Speedup")
 
-(define (plot3d-compare data s1 s2)
+#;(define (plot3d-compare data s1 s2)
   ((plot3d-series "Threads" "Work/50" "Throughput ratio")
    (string-append s1 " versus " s2)
    (combine-serii (lambda (x y) (/ y x)) 
@@ -218,10 +218,10 @@
 ;(hash-map data-pushpop (plot2d-series "Threads" "Throughput"))
 ;(hash-map data-enqdeq (plot2d-series "Threads" "Throughput"))
 
-(define data-pushpop (load "rtp" (string-append path "/pldi2") "PushPop" "latest"))
-(define data-stacktran (load "rtp" (string-append path "/pldi2") "StackTransfer" "latest"))
-(define data-enqdeq (load "rtp" (string-append path "/pldi2") "EnqDeq" "latest"))
-(define data-queuetran (load "rtp" (string-append path "/pldi2") "QueueTransfer" "latest"))
+(define data-pushpop (load "rtp" pldi-path "PushPop" "latest"))
+(define data-stacktran (load "rtp" pldi-path "StackTransfer" "latest"))
+(define data-enqdeq (load "rtp" pldi-path "EnqDeq" "latest"))
+(define data-queuetran (load "rtp" pldi-path "QueueTransfer" "latest"))
 
 (plot2d-collected 
  data-pushpop 
@@ -229,8 +229,9 @@
  '(("rTreiber" "Reagent-Treiber" 1 0)
    ("hand" "Hand-Treiber" 2 1)
    ("lock" "Lock-based" 3 2)
-   ("stm" "STM-based" 4 3)
-   ("rElim" "Reagent-Elim" 5 4)))
+   ("stm" "STM-based" 4 4)
+   #;("rElim" "Reagent-Elim" 5 4))
+ 2)
  ;#(100 1000))
  ;#(30 40 50 100 300 500 3000))
 
@@ -239,8 +240,9 @@
  "StackTransfer" 
  '(("reagent" "Reagent-Treiber" 1 0)
    ("lock" "Lock-based" 3 2)
-   ("stm" "STM-based" 4 3)
-   ("rElim" "Reagent-Elim" 5 4)))
+   ("stm" "STM-based" 4 4)
+   #;("rElim" "Reagent-Elim" 5 4))
+ 3)
  ;#(100 1000))
  ;#(10 30 40 50 100 300 500 3000 5000))
 
@@ -249,11 +251,12 @@
 (plot2d-collected 
  data-enqdeq
  "EnqDeq" 
- '(("reagent" "Reagent-MSQ" 1 0)
-   ("hand" "Hand-MSQ" 2 1)
+ '(("reagent" "Reagent-based" 1 0)
+   ("hand" "Hand-build" 2 1)
    ("lock" "Lock-based" 3 2)
-   ("stm" "STM-based" 4 3)
-   ("simpleR" "Reagent-Simple" 5 4)))
+   ("stm" "STM-based" 4 4)
+   #;("simpleR" "Reagent-Simple" 5 4))
+ 2)
  ;#(100 1000))
  ;#(50 500 5000))
 
@@ -262,7 +265,8 @@
  "QueueTransfer" 
  '(("reagent" "Reagent-MSQ" 1 0)
    ("lock" "Lock-based" 3 2)
-   ("stm" "STM-based" 4 3)
-   ("simple" "Reagent-Simple" 5 4)))
+   ("stm" "STM-based" 4 4)
+   #;("simple" "Reagent-Simple" 5 4))
+ 3)
  ;#(100 1000))
  ;#(40 100 1000))
